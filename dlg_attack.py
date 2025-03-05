@@ -1,9 +1,9 @@
-import copy
 import os
+import copy
 import torch
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
-from torch import nn, optim
+from torch import optim
 import numpy as np
 from utils import cross_entropy_for_onehot as criterion
 from torchvision import transforms
@@ -11,16 +11,15 @@ import matplotlib
 matplotlib.use('TkAgg')
 To_image = transforms.ToPILImage()
 
-save_dir = './result'
-if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
+
 
 class DLGAttack:
     def __init__(self, target_model, device):
         self.target_model = target_model
         self.device = device
+        self.mse_list = []  # 新增记录MSE
 
-    def recover_data(self, target_gradient, client_trained_weights, original_image_size):
+    def recover_data(self, target_gradient, client_trained_weights, real_images, original_image_size,round_num, batch_num, save_dir):
 
         grad_norms = []
         for layer_grad in target_gradient:
@@ -98,6 +97,14 @@ class DLGAttack:
             if iters % 10 == 0:
                 history.append(To_image(dummy_data[0].cpu()))
 
+        mse = F.mse_loss(dummy_data.detach().cpu(), real_images).item()
+        self.mse_list.append(mse)
+
+        self.save_recovered_images(history, round_num, batch_num, save_dir)
+
+        return dummy_data, dummy_label
+
+    def save_recovered_images(self, history, round_num, batch_num, save_dir):
         plt.figure(figsize=(12, 5))
         for i in range(30):
             plt.subplot(3, 10, i + 1)
@@ -105,6 +112,8 @@ class DLGAttack:
             plt.title(f"iter={i * 10}")
             plt.axis('off')
 
-        plt.show()
-
-        return dummy_data, dummy_label
+        # 保存图片
+        save_path = os.path.join(save_dir, f'round_{round_num + 1}_batch_{batch_num + 1}.png')
+        plt.savefig(save_path)
+        plt.close()
+        print(f"Saved DLG recovery image to {save_path}")
