@@ -1,5 +1,4 @@
 import torch.nn as nn
-import torch.nn.functional as F
 
 class ConvNet(nn.Module):
     def __init__(self):
@@ -19,6 +18,8 @@ class ConvNet(nn.Module):
 
     def forward(self, x):
         out = self.body(x)
+        if out.size(0) == 0:
+            raise ValueError("Batch size is zero after convolution, check batch/microbatch settings")
         out = out.view(out.size(0), -1)
         return self.fc(out)
 
